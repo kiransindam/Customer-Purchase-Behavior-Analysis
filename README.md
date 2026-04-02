@@ -80,6 +80,7 @@ Integrate real-time dashboards
 # 🚀 How to Run the Project
 Clone the repository:
 git clone  https://github.com/kiransindam/Customer-Purchase-Behavior-Analysis.git	
+
 Install dependencies:
 pip install pandas numpy matplotlib seaborn
  
