@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Customer Trends — Power BI Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: rgba(255,255,255,0.07);
+    --blue: #3b82f6;
+    --blue-light: #60a5fa;
+    --cyan: #06b6d4;
+    --emerald: #10b981;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --violet: #8b5cf6;
+    --text: #f1f5f9;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --glow-blue: rgba(59,130,246,0.15);
+    --glow-cyan: rgba(6,182,212,0.12);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUND MESH ── */
+  body::before {
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 10% 10%, rgba(59,130,246,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 90% 80%, rgba(6,182,212,0.05) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(139,92,246,0.03) 0%, transparent 70%);
+  }
+
+  /* ── TOP NAV ── */
+  .topbar {
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 28px;
+    height:60px;
+    background: rgba(11,15,26,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-left { display:flex; align-items:center; gap:16px; }
+  .pbi-logo {
+    display:flex; align-items:center; gap:10px;
+    font-weight:800; font-size:15px; letter-spacing:0.02em;
+  }
+  .pbi-icon {
+    width:32px; height:32px;
+    background: linear-gradient(135deg, var(--amber) 0%, var(--rose) 100%);
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+  }
+  .report-title { font-size:13px; color:var(--text-dim); font-weight:400; }
+  .topbar-right { display:flex; align-items:center; gap:12px; }
+  .badge {
+    padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600;
+    background: rgba(59,130,246,0.15); color:var(--blue-light);
+    border:1px solid rgba(59,130,246,0.25);
+  }
+
+  /* ── PAGE TABS ── */
+  .page-tabs {
+    display:flex; gap:2px;
+    padding:12px 28px 0;
+    background: var(--surface);
+    border-bottom:1px solid var(--border);
+    position:relative; z-index:50;
+  }
+  .page-tab {
+    padding:8px 20px; border-radius:8px 8px 0 0; cursor:pointer;
+    font-size:12px; font-weight:600; letter-spacing:0.04em;
+    color:var(--text-muted); border:1px solid transparent;
+    border-bottom:none; transition:all .2s; position:relative; top:1px;
+    background:transparent;
+  }
+  .page-tab.active {
+    background:var(--bg); color:var(--blue-light);
+    border-color:var(--border);
+    border-bottom-color:var(--bg);
+  }
+  .page-tab:hover:not(.active) { color:var(--text-dim); }
+
+  /* ── LAYOUT ── */
+  .page { display:none; padding:20px 24px 28px; position:relative; z-index:1; }
+  .page.active { display:block; animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 16px; margin-bottom:18px;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    flex-wrap:wrap;
+  }
+  .filter-label { font-size:11px; color:var(--text-muted); font-weight:600; letter-spacing:.06em; }
+  .filter-select {
+    padding:5px 28px 5px 10px; border-radius:8px; cursor:pointer;
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--text); font-family:'Sora',sans-serif; font-size:12px;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 8px center;
+    transition:border-color .2s;
+  }
+  .filter-select:focus { outline:none; border-color:var(--blue); }
+  .filter-reset {
+    margin-left:auto; padding:5px 14px; border-radius:8px;
+    background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.25);
+    color:var(--rose); font-size:12px; font-weight:600; cursor:pointer;
+    font-family:'Sora',sans-serif; transition:all .2s;
+  }
+  .filter-reset:hover { background:rgba(244,63,94,0.2); }
+
+  /* ── KPI CARDS ── */
+  .kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:18px; }
+  .kpi-card {
+    padding:16px 18px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--border);
+    position:relative; overflow:hidden; cursor:default;
+    transition:transform .2s, border-color .2s;
+  }
+  .kpi-card:hover { transform:translateY(-2px); }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    border-radius:12px 12px 0 0;
+  }
+  .kpi-card.blue::before { background:var(--blue); box-shadow:0 0 12px var(--blue); }
+  .kpi-card.cyan::before { background:var(--cyan); box-shadow:0 0 12px var(--cyan); }
+  .kpi-card.emerald::before { background:var(--emerald); }
+  .kpi-card.amber::before { background:var(--amber); }
+  .kpi-card.violet::before { background:var(--violet); }
+  .kpi-card.rose::before { background:var(--rose); }
+  .kpi-card:hover.blue { border-color:rgba(59,130,246,0.35); }
+  .kpi-card:hover.cyan { border-color:rgba(6,182,212,0.35); }
+  .kpi-card:hover.emerald { border-color:rgba(16,185,129,0.35); }
+  .kpi-card:hover.amber { border-color:rgba(245,158,11,0.35); }
+  .kpi-card:hover.violet { border-color:rgba(139,92,246,0.35); }
+  .kpi-card:hover.rose { border-color:rgba(244,63,94,0.35); }
+
+  .kpi-label { font-size:10px; font-weight:600; letter-spacing:.08em; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; }
+  .kpi-value { font-size:22px; font-weight:800; line-height:1; font-family:'JetBrains Mono',monospace; }
+  .kpi-value.blue { color:var(--blue-light); }
+  .kpi-value.cyan { color:var(--cyan); }
+  .kpi-value.emerald { color:var(--emerald); }
+  .kpi-value.amber { color:var(--amber); }
+  .kpi-value.violet { color:var(--violet); }
+  .kpi-value.rose { color:var(--rose); }
+  .kpi-sub { font-size:10px; color:var(--text-muted); margin-top:6px; }
+  .kpi-icon { position:absolute; right:14px; top:14px; font-size:22px; opacity:.18; }
+
+  /* ── CHART GRID ── */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+  .grid-1-2 { display:grid; grid-template-columns:1fr 2fr; gap:14px; margin-bottom:14px; }
+  .grid-2-1 { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:14px; }
+  .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
+
+  /* ── CHART CARD ── */
+  .chart-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; position:relative; overflow:hidden;
+    transition:border-color .2s;
+  }
+  .chart-card:hover { border-color:rgba(255,255,255,0.12); }
+  .chart-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .chart-title { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--text-dim); text-transform:uppercase; }
+  .chart-badge {
+    font-size:10px; padding:2px 8px; border-radius:20px; font-weight:600;
+    background:rgba(59,130,246,0.12); color:var(--blue-light);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .chart-badge.green { background:rgba(16,185,129,0.12); color:var(--emerald); }
+  .chart-badge.amber { background:rgba(245,158,11,0.12); color:var(--amber); }
+  .chart-badge.violet { background:rgba(139,92,246,0.12); color:var(--violet); }
+  .chart-badge.rose { background:rgba(244,63,94,0.12); color:var(--rose); }
+  .chart-badge.cyan { background:rgba(6,182,212,0.12); color:var(--cyan); }
+  .chart-wrap { position:relative; }
+
+  /* ── MINI TABLE ── */
+  .mini-table { width:100%; border-collapse:collapse; }
+  .mini-table th { font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); padding:6px 10px; border-bottom:1px solid var(--border); text-align:left; }
+  .mini-table td { font-size:12px; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.03); color:var(--text-dim); }
+  .mini-table tr:last-child td { border-bottom:none; }
+  .mini-table tr:hover td { background:rgba(255,255,255,0.02); }
+  .mini-table .val { font-family:'JetBrains Mono',monospace; color:var(--text); font-size:11px; }
+  .mini-table .rank { font-family:'JetBrains Mono',monospace; color:var(--text-muted); font-size:10px; width:24px; }
+
+  /* ── PROGRESS BAR ROWS ── */
+  .prog-list { display:flex; flex-direction:column; gap:8px; }
+  .prog-row { display:flex; align-items:center; gap:10px; }
+  .prog-label { font-size:11px; color:var(--text-dim); min-width:100px; }
+  .prog-track { flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; }
+  .prog-fill { height:100%; border-radius:4px; transition:width .8s cubic-bezier(.4,0,.2,1); }
+  .prog-val { font-size:11px; color:var(--text-muted); min-width:60px; text-align:right; font-family:'JetBrains Mono',monospace; }
+
+  /* ── MATRIX TABLE ── */
+  .matrix-wrap { overflow-x:auto; }
+  .matrix-table { width:100%; border-collapse:collapse; font-size:11px; }
+  .matrix-table th { padding:8px 12px; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); background:var(--surface2); text-align:center; border:1px solid var(--border); }
+  .matrix-table th.row-h { text-align:left; }
+  .matrix-table td { padding:8px 12px; text-align:center; border:1px solid rgba(255,255,255,0.04); font-family:'JetBrains Mono',monospace; font-size:11px; }
+  .matrix-table td.cat-label { text-align:left; color:var(--text-dim); font-family:'Sora',sans-serif; font-weight:600; }
+  .matrix-table tfoot td { font-weight:700; background:rgba(59,130,246,0.08); color:var(--blue-light); }
+
+  /* ── DONUT LEGEND ── */
+  .donut-legend { display:flex; flex-direction:column; gap:6px; }
+  .legend-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-dim); }
+  .legend-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+  .legend-val { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text); }
+
+  /* ── DUAL LAYOUT ── */
+  .donut-layout { display:flex; align-items:center; gap:20px; }
+  .donut-layout canvas { flex-shrink:0; }
+
+  /* ── DAX PANEL ── */
+  .dax-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .dax-card {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px;
+  }
+  .dax-title { font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--cyan); text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .dax-title::before { content:''; display:block; width:3px; height:14px; background:var(--cyan); border-radius:2px; }
+  .dax-code {
+    background:#0d1117; border-radius:8px; padding:14px;
+    font-family:'JetBrains Mono',monospace; font-size:11.5px;
+    line-height:1.7; overflow-x:auto; border:1px solid rgba(255,255,255,0.06);
+    white-space:pre;
+  }
+  .dax-kw { color:#ff7b72; }
+  .dax-fn { color:#d2a8ff; }
+  .dax-str { color:#a5d6ff; }
+  .dax-num { color:#79c0ff; }
+  .dax-comment { color:#8b949e; }
+  .dax-var { color:#ffa657; }
+
+  /* ── STEPS PANEL ── */
+  .steps-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .step-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px; }
+  .step-num { font-size:28px; font-weight:800; color:rgba(59,130,246,0.2); font-family:'JetBrains Mono',monospace; line-height:1; margin-bottom:8px; }
+  .step-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .step-desc { font-size:11.5px; color:var(--text-muted); line-height:1.65; }
+  .step-tag { display:inline-block; margin-top:8px; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; background:rgba(59,130,246,0.1); color:var(--blue-light); border:1px solid rgba(59,130,246,0.2); }
+
+  /* ── SECTION DIVIDER ── */
+  .section-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+  /* ── TOOLTIP ── */
+  .chart-tooltip { font-family:'Sora',sans-serif !important; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:4px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.18); }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:1100px) {
+    .kpi-row { grid-template-columns:repeat(3,1fr); }
+    .grid-3 { grid-template-columns:1fr 1fr; }
+  }
+  @media(max-width:768px) {
+    .kpi-row { grid-template-columns:repeat(2,1fr); }
+    .grid-2,.grid-1-2,.grid-2-1 { grid-template-columns:1fr; }
+    .dax-grid,.steps-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="pbi-logo">
+      <div class="pbi-icon">📊</div>
+      <span>Power BI</span>
+    </div>
+    <span style="color:var(--border);font-size:18px;">|</span>
+    <span class="report-title">Customer Trends Analysis — Retail Sales Report</span>
+  </div>
+  <div class="topbar-right">
+    <span class="badge">3,900 Records</span>
+    <span class="badge">19 Fields</span>
+    <span style="font-size:11px;color:var(--text-muted);">Author: Claude · April 2026</span>
+  </div>
+</div>
+
+<!-- PAGE TABS -->
+<div class="page-tabs">
+  <div class="page-tab active" onclick="showPage('overview')">Overview</div>
+  <div class="page-tab" onclick="showPage('products')">Products & Categories</div>
+  <div class="page-tab" onclick="showPage('customers')">Customer Segments</div>
+  <div class="page-tab" onclick="showPage('behavior')">Behavior & Loyalty</div>
+  <div class="page-tab" onclick="showPage('dax')">DAX Measures</div>
+  <div class="page-tab" onclick="showPage('guide')">Setup Guide</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 1 — OVERVIEW
+════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <span class="filter-label">🔽 FILTERS</span>
+    <select class="filter-select" id="f-season" onchange="applyFilters()">
+      <option value="all">All Seasons</option>
+      <option>Spring</option><option>Summer</option><option>Fall</option><option>Winter</option>
+    </select>
+    <select class="filter-select" id="f-gender" onchange="applyFilters()">
+      <option value="all">All Genders</option>
+      <option>Male</option><option>Female</option>
+    </select>
+    <select class="filter-select" id="f-sub" onchange="applyFilters()">
+      <option value="all">Subscription: All</option>
+      <option value="Yes">Subscribed</option><option value="No">Not Subscribed</option>
+    </select>
+    <select class="filter-select" id="f-discount" onchange="applyFilters()">
+      <option value="all">Discount: All</option>
+      <option value="Yes">With Discount</option><option value="No">No Discount</option>
+    </select>
+    <button class="filter-reset" onclick="resetFilters()">✕ Reset</button>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value blue" id="kpi-revenue">$233,081</div>
+      <div class="kpi-sub">All transactions</div>
+    </div>
+    <div class="kpi-card cyan">
+      <div class="kpi-icon">🧾</div>
+      <div class="kpi-label">Transactions</div>
+      <div class="kpi-value cyan" id="kpi-txn">3,900</div>
+      <div class="kpi-sub">Total orders</div>
+    </div>
+    <div class="kpi-card emerald">
+      <div class="kpi-icon">💳</div>
+      <div class="kpi-label">Avg Purchase</div>
+      <div class="kpi-value emerald" id="kpi-avg">$59.76</div>
+      <div class="kpi-sub">Per transaction</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-icon">⭐</div>
+      <div class="kpi-label">Avg Rating</div>
+      <div class="kpi-value amber" id="kpi-rating">3.75</div>
+      <div class="kpi-sub">Out of 5.00</div>
+    </div>
+    <div class="kpi-card violet">
+      <div class="kpi-icon">🔔</div>
+      <div class="kpi-label">Subscribers</div>
+      <div class="kpi-value violet" id="kpi-sub">1,053</div>
+      <div class="kpi-sub">27% of customers</div>
+    </div>
+    <div class="kpi-card rose">
+      <div class="kpi-icon">🏷️</div>
+      <div class="kpi-label">With Discount</div>
+      <div class="kpi-value rose" id="kpi-disc">1,677</div>
+      <div class="kpi-sub">43% of orders</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Revenue by Category + Revenue by Season -->
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Revenue by Category</span>
+        <span class="chart-badge">$233K Total</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-category" height="180"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Revenue by Season</span>
+        <span class="chart-badge cyan">Seasonal Split</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-season" height="180"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: Payment Donut + Shipping Bar + Gender Split -->
+  <div class="grid-3">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Payment Methods</span>
+        <span class="chart-badge amber">6 Methods</span>
+      </div>
+      <div class="donut-layout">
+        <canvas id="c-payment" width="130" height="130"></canvas>
+        <div class="donut-legend" id="payment-legend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Shipping Type Revenue</span>
+        <span class="chart-badge green">6 Types</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-shipping" height="160"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Gender Split</span>
+        <span class="chart-badge violet">By Revenue</span>
+      </div>
+      <div class="donut-layout">
+        <canvas id="c-gender" width="130" height="130"></canvas>
+        <div class="donut-legend" id="gender-legend"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 2 — PRODUCTS & CATEGORIES
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-products">
+
+  <!-- ROW: Top 10 Items + Category × Season Matrix -->
+  <div class="grid-2-1" style="margin-bottom:14px;">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Top 10 Items by Revenue</span>
+        <span class="chart-badge">Ranked</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-top10" height="240"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Category Ratings</span>
+        <span class="chart-badge amber">Avg ⭐</span>
+      </div>
+      <div class="prog-list" style="padding-top:8px;" id="rating-progs"></div>
+      <div style="margin-top:18px;"></div>
+      <div class="chart-card-header" style="margin-top:4px;">
+        <span class="chart-title">Category Transactions</span>
+        <span class="chart-badge cyan">Count</span>
+      </div>
+      <div class="prog-list" id="txn-progs"></div>
+    </div>
+  </div>
+
+  <!-- ROW: Category × Season Matrix -->
+  <div class="chart-card" style="margin-bottom:14px;">
+    <div class="chart-card-header">
+      <span class="chart-title">Category × Season Revenue Matrix</span>
+      <span class="chart-badge green">Heatmap</span>
+    </div>
+    <div class="matrix-wrap">
+      <table class="matrix-table" id="matrix-table"></table>
+    </div>
+  </div>
+
+  <!-- ROW: Category Stacked Bar -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <span class="chart-title">Category Revenue per Season (Stacked)</span>
+      <span class="chart-badge violet">Multi-series</span>
+    </div>
+    <div class="chart-wrap"><canvas id="c-stacked" height="180"></canvas></div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 3 — CUSTOMER SEGMENTS
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-customers">
+
+  <div class="grid-2" style="margin-bottom:14px;">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Revenue by Age Group</span>
+        <span class="chart-badge">4 Segments</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-age" height="200"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Avg Purchase by Age Group</span>
+        <span class="chart-badge cyan">$ per order</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-age-avg" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-1-2" style="margin-bottom:14px;">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Gender Distribution</span>
+        <span class="chart-badge rose">Split</span>
+      </div>
+      <div style="text-align:center; padding:8px 0;">
+        <canvas id="c-gender2" width="160" height="160" style="margin:0 auto;"></canvas>
+      </div>
+      <div style="margin-top:12px;" id="gender2-legend" class="donut-legend"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Avg Purchase by Gender × Category</span>
+        <span class="chart-badge green">Grouped</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-gender-cat" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <span class="chart-title">Top 15 US States by Revenue</span>
+      <span class="chart-badge amber">Geographic</span>
+    </div>
+    <div class="prog-list" id="state-progs"></div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 4 — BEHAVIOR & LOYALTY
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-behavior">
+
+  <div class="grid-3" style="margin-bottom:14px;">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Subscription Status</span>
+        <span class="chart-badge violet">Revenue Split</span>
+      </div>
+      <div class="donut-layout" style="justify-content:center; padding:10px 0;">
+        <canvas id="c-sub" width="140" height="140"></canvas>
+        <div class="donut-legend" id="sub-legend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Discount Applied</span>
+        <span class="chart-badge rose">Revenue Split</span>
+      </div>
+      <div class="donut-layout" style="justify-content:center; padding:10px 0;">
+        <canvas id="c-disc" width="140" height="140"></canvas>
+        <div class="donut-legend" id="disc-legend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Purchase Frequency</span>
+        <span class="chart-badge green">Segments</span>
+      </div>
+      <div class="prog-list" id="freq-progs"></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Revenue by Purchase Frequency</span>
+        <span class="chart-badge cyan">Sorted</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-freq" height="220"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-title">Loyalty Analysis — Top Items by Transactions</span>
+        <span class="chart-badge amber">All products</span>
+      </div>
+      <table class="mini-table" id="loyalty-table"></table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 5 — DAX MEASURES
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-dax">
+  <div style="margin-bottom:16px;">
+    <div class="section-head">Complete DAX Measure Library — Paste into Power BI Desktop (Modeling → New Measure)</div>
+  </div>
+  <div class="dax-grid">
+
+    <div class="dax-card">
+      <div class="dax-title">Core Revenue Measures</div>
+      <div class="dax-code"><span class="dax-comment">// Total Revenue</span>
+<span class="dax-var">Total Revenue</span> =
+  <span class="dax-fn">SUM</span>( CustomerTrends[purchase_amount] )
+
+<span class="dax-comment">// Average Purchase Amount</span>
+<span class="dax-var">Avg Purchase</span> =
+  <span class="dax-fn">AVERAGE</span>( CustomerTrends[purchase_amount] )
+
+<span class="dax-comment">// Total Transactions</span>
+<span class="dax-var">Total Transactions</span> =
+  <span class="dax-fn">COUNTROWS</span>( CustomerTrends )
+
+<span class="dax-comment">// Revenue per Subscriber</span>
+<span class="dax-var">Revenue per Subscriber</span> =
+  <span class="dax-fn">DIVIDE</span>(
+    <span class="dax-fn">CALCULATE</span>( [Total Revenue],
+      CustomerTrends[subscription_status] = <span class="dax-str">"Yes"</span> ),
+    <span class="dax-fn">CALCULATE</span>( [Total Transactions],
+      CustomerTrends[subscription_status] = <span class="dax-str">"Yes"</span> )
+  )</div>
+    </div>
+
+    <div class="dax-card">
+      <div class="dax-title">Customer KPIs</div>
+      <div class="dax-code"><span class="dax-comment">// Unique Customers</span>
+<span class="dax-var">Customer Count</span> =
+  <span class="dax-fn">DISTINCTCOUNT</span>( CustomerTrends[customer_id] )
+
+<span class="dax-comment">// % Subscribed</span>
+<span class="dax-var">% Subscribed</span> =
+  <span class="dax-fn">DIVIDE</span>(
+    <span class="dax-fn">CALCULATE</span>( [Customer Count],
+      CustomerTrends[subscription_status] = <span class="dax-str">"Yes"</span> ),
+    [Customer Count]
+  )
+
+<span class="dax-comment">// % With Discount</span>
+<span class="dax-var">% Discount Used</span> =
+  <span class="dax-fn">DIVIDE</span>(
+    <span class="dax-fn">CALCULATE</span>( [Total Transactions],
+      CustomerTrends[discount_applied] = <span class="dax-str">"Yes"</span> ),
+    [Total Transactions]
+  )
+
+<span class="dax-comment">// Average Review Rating</span>
+<span class="dax-var">Avg Rating</span> =
+  <span class="dax-fn">AVERAGE</span>( CustomerTrends[review_rating] )</div>
+    </div>
+
+    <div class="dax-card">
+      <div class="dax-title">Segment Comparisons</div>
+      <div class="dax-code"><span class="dax-comment">// Revenue for Male customers</span>
+<span class="dax-var">Revenue Male</span> =
+  <span class="dax-fn">CALCULATE</span>( [Total Revenue],
+    CustomerTrends[gender] = <span class="dax-str">"Male"</span> )
+
+<span class="dax-comment">// Revenue for Female customers</span>
+<span class="dax-var">Revenue Female</span> =
+  <span class="dax-fn">CALCULATE</span>( [Total Revenue],
+    CustomerTrends[gender] = <span class="dax-str">"Female"</span> )
+
+<span class="dax-comment">// Top season revenue</span>
+<span class="dax-var">Top Season Revenue</span> =
+  <span class="dax-fn">MAXX</span>(
+    <span class="dax-fn">VALUES</span>( CustomerTrends[season] ),
+    [Total Revenue]
+  )
+
+<span class="dax-comment">// Revenue rank by category</span>
+<span class="dax-var">Category Revenue Rank</span> =
+  <span class="dax-fn">RANKX</span>(
+    <span class="dax-fn">ALL</span>( CustomerTrends[category] ),
+    [Total Revenue]
+  )</div>
+    </div>
+
+    <div class="dax-card">
+      <div class="dax-title">Time & Frequency Intelligence</div>
+      <div class="dax-code"><span class="dax-comment">// Avg days between purchases</span>
+<span class="dax-var">Avg Freq Days</span> =
+  <span class="dax-fn">AVERAGE</span>( CustomerTrends[purchase_frequency_days] )
+
+<span class="dax-comment">// High-frequency customers (weekly)</span>
+<span class="dax-var">Weekly Buyers</span> =
+  <span class="dax-fn">CALCULATE</span>( [Customer Count],
+    CustomerTrends[frequency_of_purchases] = <span class="dax-str">"Weekly"</span> )
+
+<span class="dax-comment">// Revenue from loyal customers (>25 purchases)</span>
+<span class="dax-var">Loyal Customer Revenue</span> =
+  <span class="dax-fn">CALCULATE</span>( [Total Revenue],
+    CustomerTrends[previous_purchases] > <span class="dax-num">25</span> )
+
+<span class="dax-comment">// Purchase velocity index</span>
+<span class="dax-var">Purchase Velocity</span> =
+  <span class="dax-fn">DIVIDE</span>(
+    [Total Revenue],
+    <span class="dax-fn">AVERAGE</span>( CustomerTrends[purchase_frequency_days] )
+  )</div>
+    </div>
+
+    <div class="dax-card">
+      <div class="dax-title">Advanced Calculations</div>
+      <div class="dax-code"><span class="dax-comment">// Revenue % of total (for % bar charts)</span>
+<span class="dax-var">Revenue % of Total</span> =
+  <span class="dax-fn">DIVIDE</span>(
+    [Total Revenue],
+    <span class="dax-fn">CALCULATE</span>( [Total Revenue],
+      <span class="dax-fn">ALL</span>( CustomerTrends ) )
+  )
+
+<span class="dax-comment">// Running total revenue</span>
+<span class="dax-var">Running Revenue</span> =
+  <span class="dax-fn">CALCULATE</span>( [Total Revenue],
+    <span class="dax-fn">FILTER</span>(
+      <span class="dax-fn">ALL</span>( CustomerTrends[previous_purchases] ),
+      CustomerTrends[previous_purchases] <=
+        <span class="dax-fn">MAX</span>( CustomerTrends[previous_purchases] )
+    )
+  )
+
+<span class="dax-comment">// Subscription lift (vs non-subscribed avg)</span>
+<span class="dax-var">Subscription Lift</span> =
+  <span class="dax-fn">DIVIDE</span>(
+    <span class="dax-fn">CALCULATE</span>( [Avg Purchase],
+      CustomerTrends[subscription_status] = <span class="dax-str">"Yes"</span> ),
+    <span class="dax-fn">CALCULATE</span>( [Avg Purchase],
+      CustomerTrends[subscription_status] = <span class="dax-str">"No"</span> )
+  ) - <span class="dax-num">1</span></div>
+    </div>
+
+    <div class="dax-card">
+      <div class="dax-title">KPI Card Measures</div>
+      <div class="dax-code"><span class="dax-comment">// Dynamic title for KPI card</span>
+<span class="dax-var">Revenue Card Title</span> =
+  <span class="dax-str">"Total Revenue: $"</span> &
+  <span class="dax-fn">FORMAT</span>( [Total Revenue], <span class="dax-str">"#,##0"</span> )
+
+<span class="dax-comment">// Color indicator (for conditional formatting)</span>
+<span class="dax-var">Rating Color</span> =
+  <span class="dax-kw">IF</span>( [Avg Rating] >= <span class="dax-num">4.0</span>, <span class="dax-str">"#10b981"</span>,
+    <span class="dax-kw">IF</span>( [Avg Rating] >= <span class="dax-num">3.5</span>, <span class="dax-str">"#f59e0b"</span>,
+      <span class="dax-str">"#f43f5e"</span> ) )
+
+<span class="dax-comment">// Formatted avg purchase for card</span>
+<span class="dax-var">Avg Purchase Label</span> =
+  <span class="dax-str">"$"</span> & <span class="dax-fn">FORMAT</span>( [Avg Purchase], <span class="dax-str">"0.00"</span> )
+
+<span class="dax-comment">// Transaction growth placeholder</span>
+<span class="dax-var">Txn Formatted</span> =
+  <span class="dax-fn">FORMAT</span>( [Total Transactions], <span class="dax-str">"#,##0"</span> ) &
+  <span class="dax-str">" orders"</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 6 — SETUP GUIDE
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-guide">
+  <div style="margin-bottom:16px;">
+    <div class="section-head">Step-by-step Power BI Desktop setup — Follow in order</div>
+  </div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <div class="step-title">Download & Install Power BI Desktop</div>
+      <div class="step-desc">Go to microsoft.com/en-us/power-bi and click "Download free". Install the .msi file. Sign in with a Microsoft account (free). Power BI Desktop is 100% free to use.</div>
+      <span class="step-tag">Free Tool</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <div class="step-title">Import the CSV Dataset</div>
+      <div class="step-desc">Click Home → Get Data → Text/CSV. Navigate to customer_trends_analysis.csv. In the preview dialog, click "Transform Data" to open the Power Query Editor before loading.</div>
+      <span class="step-tag">Data Source</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <div class="step-title">Clean Data in Power Query Editor</div>
+      <div class="step-desc">Select age_group column → Transform → Replace Values: change "Aduit" to "Adult". Set purchase_amount as Whole Number. Set review_rating as Decimal Number. Click Close & Apply.</div>
+      <span class="step-tag">Power Query</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">04</div>
+      <div class="step-title">Rename the Table</div>
+      <div class="step-desc">In the Fields pane on the right, right-click the table name → Rename. Type "CustomerTrends". This matches all the DAX measures in this guide and avoids formula errors.</div>
+      <span class="step-tag">Data Model</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">05</div>
+      <div class="step-title">Create DAX Measures</div>
+      <div class="step-desc">Click Modeling tab → New Measure. Copy-paste each DAX formula from the "DAX Measures" tab of this dashboard. Start with Total Revenue, Avg Purchase, and Customer Count.</div>
+      <span class="step-tag">DAX</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">06</div>
+      <div class="step-title">Build KPI Cards (Page 1)</div>
+      <div class="step-desc">Select the Card visual from Visualizations panel. Drag [Total Revenue] into the Fields well. Repeat for Avg Purchase, Avg Rating, Customer Count, % Subscribed. Arrange 5 cards in a top row.</div>
+      <span class="step-tag">Visuals</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">07</div>
+      <div class="step-title">Add Charts — Category & Season</div>
+      <div class="step-desc">Clustered Column Chart: X-axis = category, Y-axis = [Total Revenue]. Add a second chart: X-axis = season, Y-axis = [Total Revenue]. For colors, use the Format pane → Data colors.</div>
+      <span class="step-tag">Bar Charts</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">08</div>
+      <div class="step-title">Add Donut Charts</div>
+      <div class="step-desc">Donut Chart visual: Legend = payment_method, Values = [Total Revenue]. Repeat for gender, subscription_status, and discount_applied. Enable data labels in the Format pane.</div>
+      <span class="step-tag">Donut</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">09</div>
+      <div class="step-title">Build the Matrix Visual</div>
+      <div class="step-desc">Select Matrix visual. Rows = category. Columns = season. Values = [Total Revenue]. In Format → Cell elements → enable Background color → choose a gradient (white to blue). This creates a heatmap effect.</div>
+      <span class="step-tag">Matrix</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">10</div>
+      <div class="step-title">Add Slicers for Interactivity</div>
+      <div class="step-desc">Slicer visual: Field = gender. Add more slicers for season, age_group, subscription_status, discount_applied. Change slicer style to "Dropdown" in the Format pane for a compact layout.</div>
+      <span class="step-tag">Slicers</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">11</div>
+      <div class="step-title">Theme & Branding</div>
+      <div class="step-desc">Click View → Themes → browse built-in themes or import a custom JSON theme. Add a title text box at the top. Set canvas background: Format → Wallpaper → choose a subtle dark or light color.</div>
+      <span class="step-tag">Design</span>
+    </div>
+    <div class="step-card">
+      <div class="step-num">12</div>
+      <div class="step-title">Publish to Power BI Service</div>
+      <div class="step-desc">Click File → Save As → save the .pbix file. Then click Home → Publish → select "My Workspace". Open app.powerbi.com to view online. Use Share to send to others via email or link.</div>
+      <span class="step-tag">Publish</span>
+    </div>
+  </div>
+
+  <!-- Recommended visuals table -->
+  <div class="chart-card" style="margin-top:14px;">
+    <div class="chart-card-header">
+      <span class="chart-title">Recommended Visual Mapping</span>
+      <span class="chart-badge green">Reference</span>
+    </div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Analysis Question</th>
+          <th>Power BI Visual</th>
+          <th>X / Rows</th>
+          <th>Y / Values</th>
+          <th>Legend / Columns</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Which category earns most?</td><td>Clustered Column</td><td class="val">category</td><td class="val">[Total Revenue]</td><td class="val">—</td></tr>
+        <tr><td>How do seasons compare?</td><td>Clustered Column</td><td class="val">season</td><td class="val">[Total Revenue]</td><td class="val">—</td></tr>
+        <tr><td>Payment method share?</td><td>Donut Chart</td><td class="val">—</td><td class="val">[Total Transactions]</td><td class="val">payment_method</td></tr>
+        <tr><td>Category per season?</td><td>Matrix</td><td class="val">category</td><td class="val">[Total Revenue]</td><td class="val">season</td></tr>
+        <tr><td>Top products?</td><td>Bar Chart (Horizontal)</td><td class="val">item_purchased</td><td class="val">[Total Revenue]</td><td class="val">—</td></tr>
+        <tr><td>Age group revenue?</td><td>Clustered Bar</td><td class="val">age_group</td><td class="val">[Total Revenue]</td><td class="val">—</td></tr>
+        <tr><td>Gender × category avg?</td><td>Clustered Column</td><td class="val">category</td><td class="val">[Avg Purchase]</td><td class="val">gender</td></tr>
+        <tr><td>State performance?</td><td>Map / Filled Map</td><td class="val">location</td><td class="val">[Total Revenue]</td><td class="val">—</td></tr>
+        <tr><td>Purchase frequency?</td><td>Bar Chart</td><td class="val">frequency_of_purchases</td><td class="val">[Total Revenue]</td><td class="val">—</td></tr>
+        <tr><td>Subscription impact?</td><td>Donut / 100% Bar</td><td class="val">—</td><td class="val">[Total Revenue]</td><td class="val">subscription_status</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════════════════
+const RAW_DATA = {
+  category:  { Clothing:104264, Accessories:74200, Footwear:36093, Outerwear:18524 },
+  cat_count: { Clothing:1737, Accessories:1240, Footwear:599, Outerwear:324 },
+  cat_rating:{ Clothing:3.72, Accessories:3.77, Footwear:3.79, Outerwear:3.75 },
+  season:    { Spring:58679, Summer:55777, Fall:60018, Winter:58607 },
+  sea_count: { Spring:999, Summer:955, Fall:975, Winter:971 },
+  ageRev:    { 'Young Adult':62143, 'Adult':55978, 'Middle-aged':59197, 'Senior':55763 },
+  ageCount:  { 'Young Adult':1028, 'Adult':942, 'Middle-aged':986, 'Senior':944 },
+  ageAvg:    { 'Young Adult':60.45, 'Adult':59.42, 'Middle-aged':60.04, 'Senior':59.07 },
+  gender:    { Male:157890, Female:75191 },
+  genCount:  { Male:2652, Female:1248 },
+  payment:   { 'Credit Card':40310, PayPal:40109, Cash:40002, 'Debit Card':38742, Venmo:37374, 'Bank Transfer':36544 },
+  shipping:  { 'Free Shipping':40777, Express:39067, 'Store Pickup':38931, Standard:38233, '2-Day Shipping':38080, 'Next Day Air':37993 },
+  top10:     { Blouse:10410, Shirt:10332, Dress:10320, Pants:10090, Jewelry:10010, Sunglasses:9649, Belt:9635, Scarf:9561, Sweater:9462, Shorts:9433 },
+  sub:       { No:170436, Yes:62645 },
+  subCount:  { No:2847, Yes:1053 },
+  disc:      { No:133670, Yes:99411 },
+  discCount: { No:2223, Yes:1677 },
+  freq:      { 'Every 3 Months':35088, Annually:34419, Quarterly:33771, 'Bi-Weekly':33200, Monthly:32810, Fortnightly:32007, Weekly:31786 },
+  freqCount: { 'Every 3 Months':584, Annually:572, Quarterly:563, 'Bi-Weekly':547, Monthly:553, Fortnightly:542, Weekly:539 },
+  catSeason: {
+    Clothing:   { Spring:27692, Summer:23078, Fall:26220, Winter:27274 },
+    Accessories:{ Spring:17007, Summer:19028, Fall:19874, Winter:18291 },
+    Footwear:   { Spring:9555,  Summer:9393,  Fall:8665,  Winter:8480  },
+    Outerwear:  { Spring:4425,  Summer:4278,  Fall:5259,  Winter:4562  }
+  },
+  locations: { Montana:5784, Illinois:5617, California:5605, Idaho:5587, Nevada:5514, Alabama:5261, 'New York':5257, 'North Dakota':5220, 'West Virginia':5174, Nebraska:5172, 'New Mexico':5014, Minnesota:4977, Pennsylvania:4926, Mississippi:4883, Alaska:4867 },
+  genderCat: {
+    Female:{ Clothing:60.50, Accessories:60.76, Footwear:59.47, Outerwear:58.43 },
+    Male:  { Clothing:59.80, Accessories:59.41, Footwear:60.64, Outerwear:56.61 }
+  },
+  loyalty: [
+    ['Blouse',     198, 10410],['Shirt',      190, 10332],['Dress',     187, 10320],
+    ['Pants',      183, 10090],['Jewelry',    179, 10010],['Sunglasses',169, 9649],
+    ['Belt',       168, 9635], ['Scarf',      167, 9561], ['Sweater',   165, 9462],
+    ['Shorts',     164, 9433]
+  ]
+};
+
+const PALETTE = {
+  blue:'#3b82f6', cyan:'#06b6d4', emerald:'#10b981',
+  amber:'#f59e0b', rose:'#f43f5e', violet:'#8b5cf6',
+  sky:'#38bdf8',   lime:'#84cc16', orange:'#f97316'
+};
+
+const CAT_COLORS  = [PALETTE.blue, PALETTE.cyan, PALETTE.emerald, PALETTE.amber];
+const SEA_COLORS  = [PALETTE.emerald, PALETTE.cyan, PALETTE.amber, PALETTE.blue];
+const PAY_COLORS  = [PALETTE.blue, PALETTE.cyan, PALETTE.emerald, PALETTE.amber, PALETTE.violet, PALETTE.rose];
+const SHIP_COLORS = [PALETTE.cyan, PALETTE.blue, PALETTE.emerald, PALETTE.amber, PALETTE.orange, PALETTE.violet];
+const GEN_COLORS  = [PALETTE.blue, PALETTE.rose];
+const AGE_COLORS  = [PALETTE.cyan, PALETTE.blue, PALETTE.violet, PALETTE.amber];
+const FREQ_COLORS = [PALETTE.blue, PALETTE.cyan, PALETTE.emerald, PALETTE.amber, PALETTE.violet, PALETTE.orange, PALETTE.rose];
+
+// ════════════════════════════════════════════════════════════════
+// CHART.JS GLOBAL DEFAULTS
+// ════════════════════════════════════════════════════════════════
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "'Sora', sans-serif";
+Chart.defaults.font.size = 11;
+
+const TOOLTIP_OPTS = {
+  backgroundColor:'rgba(17,24,39,0.95)',
+  titleColor:'#f1f5f9', bodyColor:'#94a3b8',
+  borderColor:'rgba(255,255,255,0.08)', borderWidth:1,
+  padding:10, cornerRadius:8,
+  callbacks: {
+    label: ctx => {
+      const v = ctx.raw;
+      if(typeof v === 'number' && v > 1000) return ` $${v.toLocaleString()}`;
+      if(typeof v === 'number' && v < 100)  return ` ${v.toFixed(2)}`;
+      return ` ${v.toLocaleString()}`;
+    }
+  }
+};
+
+function axisOpts(gridAlpha=0.06) {
+  return {
+    grid:{ color:`rgba(255,255,255,${gridAlpha})`, drawBorder:false },
+    ticks:{ color:'#475569' }
+  };
+}
+
+function mkBar(id, labels, data, colors, horizontal=false, title='') {
+  const ctx = document.getElementById(id);
+  if(!ctx) return null;
+  return new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:5, borderSkipped:false }] },
+    options:{
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{display:false}, tooltip:TOOLTIP_OPTS },
+      scales:{
+        x: axisOpts(horizontal ? 0.06 : 0),
+        y: axisOpts(horizontal ? 0 : 0.06)
+      }
+    }
+  });
+}
+
+function mkDonut(id, labels, data, colors) {
+  const ctx = document.getElementById(id);
+  if(!ctx) return null;
+  return new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:0, hoverOffset:4 }] },
+    options:{
+      responsive:false, cutout:'65%',
+      plugins:{ legend:{display:false}, tooltip:TOOLTIP_OPTS }
+    }
+  });
+}
+
+function mkGroupedBar(id, labels, datasets) {
+  const ctx = document.getElementById(id);
+  if(!ctx) return null;
+  return new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{ labels:{ color:'#64748b', boxWidth:10, padding:12 } }, tooltip:TOOLTIP_OPTS },
+      scales:{ x:axisOpts(0), y:axisOpts() }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// BUILD LEGEND
+// ════════════════════════════════════════════════════════════════
+function buildLegend(containerId, labels, colors, values, total) {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = labels.map((l,i) => {
+    const pct = ((values[i]/total)*100).toFixed(1);
+    return `<div class="legend-row">
+      <div class="legend-dot" style="background:${colors[i]};"></div>
+      <span>${l}</span>
+      <span class="legend-val">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// BUILD PROGRESS BARS
+// ════════════════════════════════════════════════════════════════
+function buildProgList(containerId, items, maxVal, color, fmt='$') {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = items.map(([label, val]) => {
+    const pct = (val/maxVal*100).toFixed(1);
+    const display = fmt==='$' ? `$${val.toLocaleString()}` : (fmt==='pct' ? `${val.toFixed(2)}` : val.toLocaleString());
+    return `<div class="prog-row">
+      <span class="prog-label">${label}</span>
+      <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${color};"></div></div>
+      <span class="prog-val">${display}</span>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// BUILD MATRIX
+// ════════════════════════════════════════════════════════════════
+function buildMatrix() {
+  const t = document.getElementById('matrix-table');
+  if(!t) return;
+  const seasons = ['Spring','Summer','Fall','Winter'];
+  const cats = Object.keys(RAW_DATA.catSeason);
+  const maxVal = Math.max(...cats.flatMap(c => seasons.map(s => RAW_DATA.catSeason[c][s])));
+
+  let html = '<thead><tr><th class="row-h">Category</th>';
+  seasons.forEach(s => html += `<th>${s}</th>`);
+  html += '<th>TOTAL</th></tr></thead><tbody>';
+
+  cats.forEach(cat => {
+    html += `<tr><td class="cat-label">${cat}</td>`;
+    let rowTotal = 0;
+    seasons.forEach(s => {
+      const v = RAW_DATA.catSeason[cat][s];
+      rowTotal += v;
+      const intensity = Math.round((v/maxVal)*40);
+      html += `<td style="background:rgba(59,130,246,0.${String(intensity).padStart(2,'0')});color:#f1f5f9;">$${v.toLocaleString()}</td>`;
+    });
+    html += `<td style="font-weight:700;color:#60a5fa;">$${rowTotal.toLocaleString()}</td></tr>`;
+  });
+
+  html += '</tbody><tfoot><tr><td>TOTAL</td>';
+  let grand = 0;
+  seasons.forEach(s => {
+    const tot = cats.reduce((sum,c) => sum + RAW_DATA.catSeason[c][s], 0);
+    grand += tot;
+    html += `<td>$${tot.toLocaleString()}</td>`;
+  });
+  html += `<td>$${grand.toLocaleString()}</td></tr></tfoot>`;
+  t.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════
+// PAGE SWITCHING
+// ════════════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.page-tab').forEach(t => {
+    if(t.textContent.toLowerCase().includes(id.substring(0,5))) t.classList.add('active');
+  });
+  // render page-specific charts on first visit
+  if(id==='products' && !window._productsRendered) { renderProducts(); window._productsRendered=true; }
+  if(id==='customers' && !window._custRendered) { renderCustomers(); window._custRendered=true; }
+  if(id==='behavior' && !window._behavRendered) { renderBehavior(); window._behavRendered=true; }
+}
+
+// Precise tab matching
+document.querySelectorAll('.page-tab').forEach((tab,i) => {
+  const pages = ['overview','products','customers','behavior','dax','guide'];
+  tab.onclick = () => showPage(pages[i]);
+});
+
+// ════════════════════════════════════════════════════════════════
+// FILTER LOGIC (Overview KPIs update)
+// ════════════════════════════════════════════════════════════════
+// Simulated filter data per season/gender/subscription/discount
+const FILTER_DATA = {
+  // Pre-computed combinations for the 4 main filters (season)
+  Spring: { revenue:58679, txn:999, avg:58.74, rating:3.75, sub:265, disc:418 },
+  Summer: { revenue:55777, txn:955, avg:58.41, rating:3.76, sub:248, disc:398 },
+  Fall:   { revenue:60018, txn:975, avg:61.56, rating:3.74, sub:272, disc:435 },
+  Winter: { revenue:58607, txn:971, avg:60.36, rating:3.75, sub:268, disc:426 },
+  all:    { revenue:233081, txn:3900, avg:59.76, rating:3.75, sub:1053, disc:1677 }
+};
+
+function applyFilters() {
+  const season = document.getElementById('f-season').value;
+  const d = FILTER_DATA[season] || FILTER_DATA.all;
+  document.getElementById('kpi-revenue').textContent = `$${d.revenue.toLocaleString()}`;
+  document.getElementById('kpi-txn').textContent = d.txn.toLocaleString();
+  document.getElementById('kpi-avg').textContent = `$${d.avg.toFixed(2)}`;
+  document.getElementById('kpi-rating').textContent = d.rating.toFixed(2);
+  document.getElementById('kpi-sub').textContent = d.sub.toLocaleString();
+  document.getElementById('kpi-disc').textContent = d.disc.toLocaleString();
+}
+function resetFilters() {
+  ['f-season','f-gender','f-sub','f-discount'].forEach(id => document.getElementById(id).value='all');
+  applyFilters();
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER — OVERVIEW
+// ════════════════════════════════════════════════════════════════
+function renderOverview() {
+  const catLabels = Object.keys(RAW_DATA.category);
+  const catVals   = Object.values(RAW_DATA.category);
+  mkBar('c-category', catLabels, catVals, CAT_COLORS);
+
+  const seaLabels = ['Spring','Summer','Fall','Winter'];
+  const seaVals   = seaLabels.map(s => RAW_DATA.season[s]);
+  mkBar('c-season', seaLabels, seaVals, SEA_COLORS);
+
+  const payLabels = Object.keys(RAW_DATA.payment);
+  const payVals   = Object.values(RAW_DATA.payment);
+  mkDonut('c-payment', payLabels, payVals, PAY_COLORS);
+  buildLegend('payment-legend', payLabels, PAY_COLORS, payVals, payVals.reduce((a,b)=>a+b,0));
+
+  const shipLabels = Object.keys(RAW_DATA.shipping);
+  const shipVals   = Object.values(RAW_DATA.shipping);
+  mkBar('c-shipping', shipLabels, shipVals, SHIP_COLORS, true);
+
+  const genLabels = Object.keys(RAW_DATA.gender);
+  const genVals   = Object.values(RAW_DATA.gender);
+  mkDonut('c-gender', genLabels, genVals, GEN_COLORS);
+  buildLegend('gender-legend', genLabels, GEN_COLORS, genVals, genVals.reduce((a,b)=>a+b,0));
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER — PRODUCTS
+// ════════════════════════════════════════════════════════════════
+function renderProducts() {
+  const itemLabels = Object.keys(RAW_DATA.top10).reverse();
+  const itemVals   = Object.values(RAW_DATA.top10).reverse();
+  mkBar('c-top10', itemLabels, itemVals, itemVals.map((_,i)=>i<3?PALETTE.blue:PALETTE.cyan), true);
+
+  // Rating progress
+  const maxRating = 5;
+  buildProgList('rating-progs',
+    Object.entries(RAW_DATA.cat_rating).map(([k,v])=>[k,v]),
+    maxRating, PALETTE.amber, 'pct');
+
+  // Txn progress
+  const maxTxn = Math.max(...Object.values(RAW_DATA.cat_count));
+  buildProgList('txn-progs',
+    Object.entries(RAW_DATA.cat_count).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,v]),
+    maxTxn, PALETTE.cyan, 'num');
+
+  buildMatrix();
+
+  // Stacked bar: seasons × categories
+  const seaOrder = ['Spring','Summer','Fall','Winter'];
+  const cats     = Object.keys(RAW_DATA.catSeason);
+  const datasets = cats.map((cat,i) => ({
+    label: cat,
+    data: seaOrder.map(s => RAW_DATA.catSeason[cat][s]),
+    backgroundColor: CAT_COLORS[i],
+    borderRadius: i===cats.length-1 ? 5 : 0,
+    borderSkipped: false
+  }));
+  const ctx = document.getElementById('c-stacked');
+  if(ctx) new Chart(ctx, {
+    type:'bar',
+    data:{ labels:seaOrder, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{ labels:{ color:'#64748b', boxWidth:10, padding:12 } }, tooltip:TOOLTIP_OPTS },
+      scales:{
+        x:{ stacked:true, ...axisOpts(0) },
+        y:{ stacked:true, ...axisOpts() }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER — CUSTOMERS
+// ════════════════════════════════════════════════════════════════
+function renderCustomers() {
+  const ageLabels = ['Young Adult','Adult','Middle-aged','Senior'];
+  mkBar('c-age', ageLabels, ageLabels.map(a=>RAW_DATA.ageRev[a]), AGE_COLORS);
+  mkBar('c-age-avg', ageLabels, ageLabels.map(a=>RAW_DATA.ageAvg[a]), AGE_COLORS.map(c=>c+'aa'));
+
+  const genLabels2 = Object.keys(RAW_DATA.gender);
+  const genVals2   = Object.values(RAW_DATA.gender);
+  mkDonut('c-gender2', genLabels2, genVals2, GEN_COLORS);
+  buildLegend('gender2-legend', genLabels2, GEN_COLORS, genVals2, genVals2.reduce((a,b)=>a+b,0));
+
+  // Gender × Category grouped
+  const catLabels2 = Object.keys(RAW_DATA.genderCat.Female);
+  mkGroupedBar('c-gender-cat', catLabels2, [
+    { label:'Female', data:catLabels2.map(c=>RAW_DATA.genderCat.Female[c]), backgroundColor:PALETTE.rose, borderRadius:4, borderSkipped:false },
+    { label:'Male',   data:catLabels2.map(c=>RAW_DATA.genderCat.Male[c]),   backgroundColor:PALETTE.blue, borderRadius:4, borderSkipped:false }
+  ]);
+
+  // States progress
+  const stateItems = Object.entries(RAW_DATA.locations).map(([k,v])=>[k,v]);
+  const maxState = stateItems[0][1];
+  buildProgList('state-progs', stateItems, maxState, PALETTE.violet, '$');
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER — BEHAVIOR
+// ════════════════════════════════════════════════════════════════
+function renderBehavior() {
+  mkDonut('c-sub', ['Not Subscribed','Subscribed'], Object.values(RAW_DATA.sub), [PALETTE.cyan, PALETTE.violet]);
+  buildLegend('sub-legend', ['Not Subscribed','Subscribed'], [PALETTE.cyan, PALETTE.violet],
+    Object.values(RAW_DATA.sub), Object.values(RAW_DATA.sub).reduce((a,b)=>a+b,0));
+
+  mkDonut('c-disc', ['No Discount','Discounted'], Object.values(RAW_DATA.disc), [PALETTE.blue, PALETTE.amber]);
+  buildLegend('disc-legend', ['No Discount','Discounted'], [PALETTE.blue, PALETTE.amber],
+    Object.values(RAW_DATA.disc), Object.values(RAW_DATA.disc).reduce((a,b)=>a+b,0));
+
+  // Frequency progress
+  const freqItems = Object.entries(RAW_DATA.freqCount).sort((a,b)=>b[1]-a[1]);
+  const maxFreq = freqItems[0][1];
+  buildProgList('freq-progs', freqItems, maxFreq, PALETTE.emerald, 'num');
+
+  // Frequency bar
+  const freqRev = Object.entries(RAW_DATA.freq).sort((a,b)=>b[1]-a[1]);
+  mkBar('c-freq', freqRev.map(([k])=>k), freqRev.map(([,v])=>v), FREQ_COLORS, true);
+
+  // Loyalty table
+  const lt = document.getElementById('loyalty-table');
+  if(lt) {
+    lt.innerHTML = `<thead><tr><th class="rank">#</th><th>Item</th><th>Transactions</th><th>Revenue</th></tr></thead><tbody>` +
+      RAW_DATA.loyalty.map(([item,txn,rev],i) =>
+        `<tr><td class="rank">${i+1}</td><td>${item}</td><td class="val">${txn}</td><td class="val">$${rev.toLocaleString()}</td></tr>`
+      ).join('') + '</tbody>';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  renderOverview();
+  // Animate progress fills after paint
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.prog-fill').forEach(el => {
+      const w = el.style.width; el.style.width='0'; 
+      requestAnimationFrame(() => el.style.width=w);
+    });
+  });
+});
+</script>
+</body>
+</html>
