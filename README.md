@@ -2,6 +2,10 @@
 📌 Project Overview
 
 This project analyzes a retail dataset containing customer demographics, purchasing behavior, product preferences, and transaction details. The goal is to extract meaningful insights that help understand customer buying patterns, product trends, and business decision-making.
+# Build a Dashboard #
+
+<img width="1363" height="737" alt="Image" src="https://github.com/user-attachments/assets/d386b3b1-5aca-48b0-8cf0-f732a28cd396" />
+
 
 # 📂 Dataset Description
 
